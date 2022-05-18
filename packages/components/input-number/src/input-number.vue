@@ -13,6 +13,7 @@
       v-if="controls"
       v-repeat-click="decrease"
       role="button"
+      :aria-label="t('el.inputNumber.decrease')"
       :class="[ns.e('decrease'), ns.is('disabled', minDisabled)]"
       @keydown.enter="decrease"
     >
@@ -25,6 +26,7 @@
       v-if="controls"
       v-repeat-click="increase"
       role="button"
+      :aria-label="t('el.inputNumber.increase')"
       :class="[ns.e('increase'), ns.is('disabled', maxDisabled)]"
       @keydown.enter="increase"
     >
@@ -34,6 +36,7 @@
       </el-icon>
     </span>
     <el-input
+      :id="id"
       ref="input"
       type="number"
       :step="step"
@@ -65,24 +68,26 @@ import {
   ref,
   watch,
 } from 'vue'
+import { isNil } from 'lodash-unified'
 
 import { ElIcon } from '@element-plus/components/icon'
 import { RepeatClick } from '@element-plus/directives'
 import {
   useDisabled,
   useFormItem,
+  useLocale,
   useNamespace,
   useSize,
 } from '@element-plus/hooks'
 import ElInput from '@element-plus/components/input'
-import { debugWarn, isNumber, isUndefined } from '@element-plus/utils'
+import { debugWarn, isNumber, isString, isUndefined } from '@element-plus/utils'
 import { ArrowDown, ArrowUp, Minus, Plus } from '@element-plus/icons-vue'
 import { inputNumberEmits, inputNumberProps } from './input-number'
 
 import type { ComponentPublicInstance } from 'vue'
 
 interface IData {
-  currentValue: number | undefined
+  currentValue: number | null | undefined
   userInput: null | number | string
 }
 
@@ -107,14 +112,19 @@ export default defineComponent({
       currentValue: props.modelValue,
       userInput: null,
     })
+    const { t } = useLocale()
     const { formItem } = useFormItem()
     const ns = useNamespace('input-number')
 
     const minDisabled = computed(
-      () => ensurePrecision(props.modelValue, -1) < props.min
+      () =>
+        isNumber(props.modelValue) &&
+        ensurePrecision(props.modelValue, -1) < props.min
     )
     const maxDisabled = computed(
-      () => ensurePrecision(props.modelValue) > props.max
+      () =>
+        isNumber(props.modelValue) &&
+        ensurePrecision(props.modelValue) > props.max
     )
 
     const numPrecision = computed(() => {
@@ -142,7 +152,8 @@ export default defineComponent({
       if (data.userInput !== null) {
         return data.userInput
       }
-      let currentValue: number | string | undefined = data.currentValue
+      let currentValue: number | string | undefined | null = data.currentValue
+      if (isNil(currentValue)) return ''
       if (isNumber(currentValue)) {
         if (Number.isNaN(currentValue)) return ''
         if (!isUndefined(props.precision)) {
@@ -153,10 +164,16 @@ export default defineComponent({
     })
     const toPrecision = (num: number, pre?: number) => {
       if (isUndefined(pre)) pre = numPrecision.value
+      const digits = num.toString().split('.')
+      if (digits.length > 1) {
+        const integer = digits[0]
+        const decimal = Math.round(+digits[1] / 10 ** (digits[1].length - pre))
+        return Number.parseFloat(`${integer}.${decimal}`)
+      }
       return Number.parseFloat(`${Math.round(num * 10 ** pre) / 10 ** pre}`)
     }
-    const getPrecision = (value: number | undefined) => {
-      if (isUndefined(value)) return 0
+    const getPrecision = (value: number | null | undefined) => {
+      if (isNil(value)) return 0
       const valueString = value.toString()
       const dotPosition = valueString.indexOf('.')
       let precision = 0
@@ -168,7 +185,6 @@ export default defineComponent({
     const ensurePrecision = (val: number, coefficient: 1 | -1 = 1) => {
       if (!isNumber(val)) return data.currentValue
       // Solve the accuracy problem of JS decimal calculation by converting the value to integer.
-      val = isNumber(val) ? val : Number.NaN
       return toPrecision(val + props.step * coefficient)
     }
     const increase = () => {
@@ -184,35 +200,38 @@ export default defineComponent({
       setCurrentValue(newVal)
     }
     const verifyValue = (
-      value: number | string | undefined,
+      value: number | string | null | undefined,
       update?: boolean
-    ): number | undefined => {
-      const { max, min, step, precision, stepStrictly } = props
+    ): number | null | undefined => {
+      const { max, min, step, precision, stepStrictly, valueOnClear } = props
       let newVal = Number(value)
-      if (value === null) {
-        newVal = Number.NaN
+      if (isNil(value) || Number.isNaN(newVal)) {
+        return null
       }
-      if (!Number.isNaN(newVal)) {
-        if (stepStrictly) {
-          newVal = Math.round(newVal / step) * step
+      if (value === '') {
+        if (valueOnClear === null) {
+          return null
         }
-        if (!isUndefined(precision)) {
-          newVal = toPrecision(newVal, precision)
-        }
-        if (newVal > max || newVal < min) {
-          newVal = newVal > max ? max : min
-          update && emit('update:modelValue', newVal)
-        }
+        newVal = isString(valueOnClear)
+          ? { min, max }[valueOnClear]
+          : valueOnClear
+      }
+      if (stepStrictly) {
+        newVal = Math.round(newVal / step) * step
+      }
+      if (!isUndefined(precision)) {
+        newVal = toPrecision(newVal, precision)
+      }
+      if (newVal > max || newVal < min) {
+        newVal = newVal > max ? max : min
+        update && emit('update:modelValue', newVal)
       }
       return newVal
     }
-    const setCurrentValue = (value: number | string | undefined) => {
+    const setCurrentValue = (value: number | string | null | undefined) => {
       const oldVal = data.currentValue
-      let newVal = verifyValue(value)
+      const newVal = verifyValue(value)
       if (oldVal === newVal) return
-      if (Number.isNaN(newVal)) {
-        newVal = undefined
-      }
       data.userInput = null
       emit('update:modelValue', newVal)
       emit('input', newVal)
@@ -251,26 +270,34 @@ export default defineComponent({
     watch(
       () => props.modelValue,
       (value) => {
-        const newVal = verifyValue(value, true)
-        data.currentValue = newVal
+        data.currentValue = verifyValue(value, true)
         data.userInput = null
       },
       { immediate: true }
     )
     onMounted(() => {
+      const { min, max, modelValue } = props
       const innerInput = input.value?.input as HTMLInputElement
       innerInput.setAttribute('role', 'spinbutton')
-      innerInput.setAttribute('aria-valuemax', String(props.max))
-      innerInput.setAttribute('aria-valuemin', String(props.min))
+      if (Number.isFinite(max)) {
+        innerInput.setAttribute('aria-valuemax', String(max))
+      } else {
+        innerInput.removeAttribute('aria-valuemax')
+      }
+      if (Number.isFinite(min)) {
+        innerInput.setAttribute('aria-valuemin', String(min))
+      } else {
+        innerInput.removeAttribute('aria-valuemin')
+      }
       innerInput.setAttribute('aria-valuenow', String(data.currentValue))
       innerInput.setAttribute(
         'aria-disabled',
         String(inputNumberDisabled.value)
       )
-      if (!isNumber(props.modelValue)) {
-        let val: number | undefined = Number(props.modelValue)
+      if (!isNumber(modelValue) && modelValue != null) {
+        let val: number | null = Number(modelValue)
         if (Number.isNaN(val)) {
-          val = undefined
+          val = null
         }
         emit('update:modelValue', val)
       }
@@ -280,6 +307,7 @@ export default defineComponent({
       innerInput?.setAttribute('aria-valuenow', data.currentValue)
     })
     return {
+      t,
       input,
       displayValue,
       handleInput,

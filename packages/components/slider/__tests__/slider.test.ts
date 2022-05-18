@@ -1,7 +1,8 @@
 import { h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
-import sleep from '@element-plus/test-utils/sleep'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { EVENT_CODE } from '@element-plus/constants'
+import { ElFormItem } from '@element-plus/components/form'
 import Slider from '../src/index.vue'
 
 vi.mock('lodash-unified', async () => {
@@ -16,6 +17,14 @@ vi.mock('lodash-unified', async () => {
 })
 
 describe('Slider', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('create', () => {
     const wrapper = mount(Slider)
     expect(wrapper.props().modelValue).toBe(0)
@@ -34,7 +43,7 @@ describe('Slider', () => {
       },
     })
 
-    await sleep(10)
+    await nextTick()
     wrapper.vm.value = 40
     await nextTick()
     expect(wrapper.vm.value).toBe(50)
@@ -118,7 +127,7 @@ describe('Slider', () => {
         }
       },
       methods: {
-        formatTooltip(val) {
+        formatTooltip(val: number) {
           return `$${val}`
         },
       },
@@ -131,6 +140,7 @@ describe('Slider', () => {
 
   describe('drag', () => {
     it('horizontal', async () => {
+      vi.useRealTimers()
       const wrapper = mount(
         {
           template: `
@@ -151,9 +161,11 @@ describe('Slider', () => {
       )
       const slider = wrapper.findComponent({ name: 'ElSliderButton' })
 
-      const mockClientWidth = vi
-        .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
-        .mockImplementation(() => 200)
+      vi.spyOn(
+        wrapper.find('.el-slider__runway').element,
+        'clientWidth',
+        'get'
+      ).mockImplementation(() => 200)
       slider.trigger('mousedown', { clientX: 0 })
 
       const mousemove = document.createEvent('MouseEvent')
@@ -198,10 +210,10 @@ describe('Slider', () => {
 
       await nextTick()
       expect(wrapper.vm.value === 50).toBeTruthy()
-      mockClientWidth.mockRestore()
     })
 
     it('vertical', async () => {
+      vi.useRealTimers()
       const wrapper = mount(
         {
           template: `
@@ -221,14 +233,11 @@ describe('Slider', () => {
         }
       )
       const slider = wrapper.findComponent({ name: 'ElSliderButton' })
-
-      const mockClientHeight = vi
-        .spyOn(
-          wrapper.find('.el-slider__runway').element,
-          'clientHeight',
-          'get'
-        )
-        .mockImplementation(() => 200)
+      vi.spyOn(
+        wrapper.find('.el-slider__runway').element,
+        'clientHeight',
+        'get'
+      ).mockImplementation(() => 200)
       slider.trigger('mousedown', { clientY: 0 })
       const mousemove = document.createEvent('MouseEvent')
       mousemove.initMouseEvent(
@@ -270,37 +279,123 @@ describe('Slider', () => {
       window.dispatchEvent(mouseup)
       await nextTick()
       expect(wrapper.vm.value).toBe(50)
-      mockClientHeight.mockRestore()
     })
   })
 
-  it('accessibility', (done) => {
-    const wrapper = mount({
-      template: `
-        <div>
-          <slider v-model="value"></slider>
-        </div>
-      `,
-      components: { Slider },
-      data() {
-        return {
-          value: 0.1,
-        }
-      },
-    })
-    const slider: any = wrapper.findComponent({ name: 'ElSliderButton' })
-    slider.vm.onRightKeyDown()
-    setTimeout(() => {
+  describe('accessibility', () => {
+    it('left/right arrows', async () => {
+      const wrapper = mount({
+        template: `
+          <div>
+            <slider v-model="value"></slider>
+          </div>
+        `,
+        components: { Slider },
+        data() {
+          return {
+            value: 0.1,
+          }
+        },
+      })
+      const slider: any = wrapper.findComponent({ name: 'ElSliderButton' })
+
+      slider.vm.onKeyDown(
+        new KeyboardEvent('keydown', { key: EVENT_CODE.right })
+      )
+      await nextTick()
       expect(wrapper.vm.value).toBe(1)
-      slider.vm.onLeftKeyDown()
-      setTimeout(() => {
-        expect(wrapper.vm.value).toBe(0)
-        done()
-      }, 10)
-    }, 10)
+
+      slider.vm.onKeyDown(
+        new KeyboardEvent('keydown', { key: EVENT_CODE.left })
+      )
+      await nextTick()
+      expect(wrapper.vm.value).toBe(0)
+    })
+
+    it('up/down arrows', async () => {
+      const wrapper = mount({
+        template: `
+          <div>
+            <slider v-model="value"></slider>
+          </div>
+        `,
+        components: { Slider },
+        data() {
+          return {
+            value: 0.1,
+          }
+        },
+      })
+      const slider: any = wrapper.findComponent({ name: 'ElSliderButton' })
+
+      slider.vm.onKeyDown(new KeyboardEvent('keydown', { key: EVENT_CODE.up }))
+      await nextTick()
+      expect(wrapper.vm.value).toBe(1)
+
+      slider.vm.onKeyDown(
+        new KeyboardEvent('keydown', { key: EVENT_CODE.down })
+      )
+      await nextTick()
+      expect(wrapper.vm.value).toBe(0)
+    })
+
+    it('page up/down keys', async () => {
+      const wrapper = mount({
+        template: `
+          <div>
+            <slider v-model="value" :min="-5" :max="10"></slider>
+          </div>
+        `,
+        components: { Slider },
+        data() {
+          return {
+            value: -1,
+          }
+        },
+      })
+      const slider: any = wrapper.findComponent({ name: 'ElSliderButton' })
+      slider.vm.onKeyDown(
+        new KeyboardEvent('keydown', { key: EVENT_CODE.pageUp })
+      )
+      await nextTick()
+      expect(wrapper.vm.value).toBe(3)
+
+      slider.vm.onKeyDown(
+        new KeyboardEvent('keydown', { key: EVENT_CODE.pageDown })
+      )
+      await nextTick()
+      expect(wrapper.vm.value).toBe(-1)
+    })
+
+    it('home/end keys', async () => {
+      const wrapper = mount({
+        template: `
+          <div>
+            <slider v-model="value" :min="-5" :max="10"></slider>
+          </div>
+        `,
+        components: { Slider },
+        data() {
+          return {
+            value: 0,
+          }
+        },
+      })
+      const slider: any = wrapper.findComponent({ name: 'ElSliderButton' })
+      slider.vm.onKeyDown(
+        new KeyboardEvent('keydown', { key: EVENT_CODE.home })
+      )
+      await nextTick()
+      expect(wrapper.vm.value).toBe(-5)
+
+      slider.vm.onKeyDown(new KeyboardEvent('keydown', { key: EVENT_CODE.end }))
+      await nextTick()
+      expect(wrapper.vm.value).toBe(10)
+    })
   })
 
-  it('step', (done) => {
+  it('step', async () => {
+    vi.useRealTimers()
     const wrapper = mount(
       {
         template: `
@@ -323,55 +418,55 @@ describe('Slider', () => {
       .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
       .mockImplementation(() => 200)
     const slider: any = wrapper.findComponent({ name: 'ElSliderButton' })
-    nextTick().then(() => {
-      slider.trigger('mousedown', { clientX: 0 })
-      const mousemove = document.createEvent('MouseEvent')
-      mousemove.initMouseEvent(
-        'mousemove',
-        true,
-        true,
-        window,
-        1,
-        100,
-        0,
-        100,
-        0,
-        false,
-        false,
-        true,
-        false,
-        0,
-        null
-      )
-      window.dispatchEvent(mousemove)
-      const mouseup = document.createEvent('MouseEvent')
-      mouseup.initMouseEvent(
-        'mouseup',
-        true,
-        true,
-        window,
-        1,
-        100,
-        0,
-        100,
-        0,
-        false,
-        false,
-        true,
-        false,
-        0,
-        null
-      )
-      window.dispatchEvent(mouseup)
-      setTimeout(() => {
-        expect(wrapper.vm.value === 0.5).toBeTruthy()
-        mockClientWidth.mockRestore()
-        done()
-      }, 10)
-    })
+    await nextTick()
+
+    slider.trigger('mousedown', { clientX: 0 })
+    const mousemove = document.createEvent('MouseEvent')
+    mousemove.initMouseEvent(
+      'mousemove',
+      true,
+      true,
+      window,
+      1,
+      100,
+      0,
+      100,
+      0,
+      false,
+      false,
+      true,
+      false,
+      0,
+      null
+    )
+    window.dispatchEvent(mousemove)
+    const mouseup = document.createEvent('MouseEvent')
+    mouseup.initMouseEvent(
+      'mouseup',
+      true,
+      true,
+      window,
+      1,
+      100,
+      0,
+      100,
+      0,
+      false,
+      false,
+      true,
+      false,
+      0,
+      null
+    )
+    await nextTick()
+    window.dispatchEvent(mouseup)
+    await nextTick()
+    expect(wrapper.vm.value === 0.5).toBeTruthy()
+    mockClientWidth.mockRestore()
   })
 
-  it('click', (done) => {
+  it('click', async () => {
+    vi.useRealTimers()
     const wrapper = mount({
       template: `
         <div>
@@ -385,17 +480,18 @@ describe('Slider', () => {
         }
       },
     })
+    const mockClientWidth = vi
+      .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
+      .mockImplementation(() => 200)
     const slider: any = wrapper.findComponent({ name: 'ElSlider' })
-    setTimeout(() => {
-      slider.vm.onSliderClick({ clientX: 100 })
-      setTimeout(() => {
-        expect(wrapper.vm.value > 0).toBeTruthy()
-        done()
-      }, 10)
-    }, 10)
+    slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
+    await nextTick()
+    expect(wrapper.vm.value > 0).toBeTruthy()
+    mockClientWidth.mockRestore()
   })
 
-  it('change event', (done) => {
+  it('change event', async () => {
+    vi.useRealTimers()
     const wrapper = mount({
       template: `
         <div style="width: 200px">
@@ -411,7 +507,7 @@ describe('Slider', () => {
         }
       },
       methods: {
-        onChange(val) {
+        onChange(val: number) {
           this.data = val
         },
       },
@@ -430,19 +526,16 @@ describe('Slider', () => {
     const mockClientWidth = vi
       .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
       .mockImplementation(() => 200)
-    setTimeout(() => {
-      expect(wrapper.vm.data).toBe(0)
-      slider.vm.onSliderClick({ clientX: 100 })
-      setTimeout(() => {
-        expect(wrapper.vm.data === 50).toBeTruthy()
-        mockRectLeft.mockRestore()
-        mockClientWidth.mockRestore()
-        done()
-      }, 10)
-    }, 10)
+    expect(wrapper.vm.data).toBe(0)
+    slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
+    await nextTick()
+    expect(wrapper.vm.data === 50).toBeTruthy()
+    mockRectLeft.mockRestore()
+    mockClientWidth.mockRestore()
   })
 
-  it('input event', async (done) => {
+  it('input event', async () => {
+    vi.useRealTimers()
     const wrapper = mount({
       template: `
         <div style="width: 200px">
@@ -458,7 +551,7 @@ describe('Slider', () => {
         }
       },
       methods: {
-        onInput(val) {
+        onInput(val: number) {
           this.data = val
         },
       },
@@ -479,15 +572,15 @@ describe('Slider', () => {
       .mockImplementation(() => 200)
     await nextTick()
     expect(wrapper.vm.data).toBe(0)
-    slider.vm.onSliderClick({ clientX: 100 })
+    slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
     await nextTick()
     expect(wrapper.vm.data === 50).toBeTruthy()
     mockRectLeft.mockRestore()
     mockClientWidth.mockRestore()
-    done()
   })
 
-  it('disabled', (done) => {
+  it('disabled', async () => {
+    vi.useRealTimers()
     const wrapper = mount({
       template: `
         <div>
@@ -544,14 +637,12 @@ describe('Slider', () => {
       null
     )
     window.dispatchEvent(mouseup)
-    setTimeout(() => {
-      expect(wrapper.vm.value).toBe(0)
-      mockClientWidth.mockRestore()
-      done()
-    }, 10)
+    await nextTick()
+    expect(wrapper.vm.value).toBe(0)
+    mockClientWidth.mockRestore()
   })
 
-  it('show input', (done) => {
+  it('show input', async () => {
     const wrapper = mount({
       template: `
         <div>
@@ -566,11 +657,9 @@ describe('Slider', () => {
       },
     })
     const increaseButton = wrapper.find('.el-input-number__increase')
-    increaseButton.trigger('mousedown')
-    setTimeout(() => {
-      expect(wrapper.vm.value > 0).toBeTruthy()
-      done()
-    }, 200)
+    await increaseButton.trigger('mousedown')
+    vi.advanceTimersByTime(200)
+    expect(wrapper.vm.value > 0).toBeTruthy()
   })
 
   it('show stops', () => {
@@ -584,7 +673,8 @@ describe('Slider', () => {
     expect(stops.length).toBe(9)
   })
 
-  it('vertical mode', (done) => {
+  it('vertical mode', async () => {
+    vi.useRealTimers()
     const wrapper = mount(
       {
         template: `
@@ -617,15 +707,11 @@ describe('Slider', () => {
       .spyOn(wrapper.find('.el-slider__runway').element, 'clientHeight', 'get')
       .mockImplementation(() => 200)
     const slider: any = wrapper.getComponent({ name: 'ElSlider' })
-    setTimeout(() => {
-      slider.vm.onSliderClick({ clientY: 100 })
-      setTimeout(() => {
-        expect(wrapper.vm.value > 0).toBeTruthy()
-        mockRectBottom.mockRestore()
-        mockClientHeight.mockRestore()
-        done()
-      }, 10)
-    }, 10)
+    slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
+    await nextTick()
+    expect(wrapper.vm.value > 0).toBeTruthy()
+    mockRectBottom.mockRestore()
+    mockClientHeight.mockRestore()
   })
 
   it('rerender with min and show-input', async () => {
@@ -665,7 +751,7 @@ describe('Slider', () => {
       expect(sliders.length).toBe(2)
     })
 
-    it('should not exceed min and max', (done) => {
+    it('should not exceed min and max', async () => {
       const wrapper = mount({
         template: `
           <div>
@@ -680,20 +766,19 @@ describe('Slider', () => {
           }
         },
       })
-      setTimeout(() => {
-        wrapper.vm.value = [40, 60]
-        setTimeout(() => {
-          expect(wrapper.vm.value).toStrictEqual([50, 60])
-          wrapper.vm.value = [50, 120]
-          setTimeout(() => {
-            expect(wrapper.vm.value).toStrictEqual([50, 100])
-            done()
-          }, 10)
-        }, 10)
-      }, 10)
+      await nextTick()
+
+      wrapper.vm.value = [40, 60]
+      await nextTick()
+      expect(wrapper.vm.value).toStrictEqual([50, 60])
+
+      wrapper.vm.value = [50, 120]
+      await nextTick()
+      expect(wrapper.vm.value).toStrictEqual([50, 100])
     })
 
-    it('click', (done) => {
+    it('click', async () => {
+      vi.useRealTimers()
       const wrapper = mount(
         {
           template: `
@@ -726,21 +811,17 @@ describe('Slider', () => {
         .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
         .mockImplementation(() => 200)
       const slider: any = wrapper.getComponent({ name: 'ElSlider' })
-      setTimeout(() => {
-        slider.vm.onSliderClick({ clientX: 100 })
-        setTimeout(() => {
-          // Because mock the clientWidth, so the targetValue is 50.
-          // The behavior of the setPosition method in the useSlider.ts file should be that the value of the second button is 50
-          expect(wrapper.vm.value[0] === 0).toBeTruthy()
-          expect(wrapper.vm.value[1] === 50).toBeTruthy()
-          mockRectLeft.mockRestore()
-          mockClientWidth.mockRestore()
-          done()
-        }, 10)
-      }, 10)
+      slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
+      await nextTick()
+      // Because mock the clientWidth, so the targetValue is 50.
+      // The behavior of the setPosition method in the useSlider.ts file should be that the value of the second button is 50
+      expect(wrapper.vm.value[0] === 0).toBeTruthy()
+      expect(wrapper.vm.value[1] === 50).toBeTruthy()
+      mockRectLeft.mockRestore()
+      mockClientWidth.mockRestore()
     })
 
-    it('responsive to dynamic min and max', (done) => {
+    it('responsive to dynamic min and max', async () => {
       const wrapper = mount({
         template: `
           <div>
@@ -757,21 +838,19 @@ describe('Slider', () => {
           }
         },
       })
-      setTimeout(() => {
-        wrapper.vm.min = 60
-        setTimeout(() => {
-          expect(wrapper.vm.value).toStrictEqual([60, 80])
-          wrapper.vm.min = 30
-          wrapper.vm.max = 40
-          setTimeout(() => {
-            expect(wrapper.vm.value).toStrictEqual([40, 40])
-            done()
-          }, 10)
-        }, 10)
-      }, 10)
+      await nextTick()
+
+      wrapper.vm.min = 60
+      await nextTick()
+      expect(wrapper.vm.value).toStrictEqual([60, 80])
+
+      wrapper.vm.min = 30
+      wrapper.vm.max = 40
+      await nextTick()
+      expect(wrapper.vm.value).toStrictEqual([40, 40])
     })
 
-    it('show stops', (done) => {
+    it('show stops', async () => {
       const wrapper = mount({
         template: `
           <div>
@@ -790,11 +869,9 @@ describe('Slider', () => {
           }
         },
       })
-      setTimeout(() => {
-        const stops = wrapper.findAll('.el-slider__stop')
-        expect(stops.length).toBe(5)
-        done()
-      }, 10)
+      await nextTick()
+      const stops = wrapper.findAll('.el-slider__stop')
+      expect(stops.length).toBe(5)
     })
 
     it('marks', async () => {
@@ -830,14 +907,108 @@ describe('Slider', () => {
         },
       })
 
-      nextTick().then(() => {
-        const stops = wrapper.findAll('.el-slider__marks-stop.el-slider__stop')
-        const marks = wrapper.findAll(
-          '.el-slider__marks .el-slider__marks-text'
-        )
-        expect(marks.length).toBe(2)
-        expect(stops.length).toBe(2)
+      await nextTick()
+      const stops = wrapper.findAll('.el-slider__marks-stop.el-slider__stop')
+      const marks = wrapper.findAll('.el-slider__marks .el-slider__marks-text')
+      expect(marks.length).toBe(2)
+      expect(stops.length).toBe(2)
+    })
+  })
+
+  describe('form item accessibility integration', () => {
+    it('automatic id attachment', async () => {
+      const wrapper = mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+            <el-slider />
+          </el-form-item>`,
+        components: {
+          'el-slider': Slider,
+          'el-form-item': ElFormItem,
+        },
       })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      const formItemLabel = formItem.find('.el-form-item__label')
+      const sliderButton = wrapper.find('.el-slider__button-wrapper')
+      expect(formItem.attributes().role).toBeFalsy()
+      expect(formItemLabel.attributes().for).toBe(sliderButton.attributes().id)
+    })
+
+    it('range with automatic id attachment', async () => {
+      const wrapper = mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+            <el-slider :range="true" />
+          </el-form-item>`,
+        components: {
+          'el-slider': Slider,
+          'el-form-item': ElFormItem,
+        },
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      const formItemLabel = formItem.find('.el-form-item__label')
+      const sliderWrapper = wrapper.find('.el-slider')
+      expect(formItem.attributes().role).toBeFalsy()
+      expect(formItemLabel.attributes().for).toBe(sliderWrapper.attributes().id)
+    })
+
+    it('specified id attachment', async () => {
+      const wrapper = mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+            <el-slider id="foobar" />
+          </el-form-item>`,
+        components: {
+          'el-slider': Slider,
+          'el-form-item': ElFormItem,
+        },
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      const formItemLabel = formItem.find('.el-form-item__label')
+      const sliderButton = wrapper.find('.el-slider__button-wrapper')
+      expect(formItem.attributes().role).toBeFalsy()
+      expect(sliderButton.attributes().id).toBe('foobar')
+      expect(formItemLabel.attributes().for).toBe(sliderButton.attributes().id)
+    })
+
+    it('range with specified id attachment', async () => {
+      const wrapper = mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+            <el-slider id="foobar" :range="true" />
+          </el-form-item>`,
+        components: {
+          'el-slider': Slider,
+          'el-form-item': ElFormItem,
+        },
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      const formItemLabel = formItem.find('.el-form-item__label')
+      const sliderWrapper = wrapper.find('.el-slider')
+      expect(formItem.attributes().role).toBeFalsy()
+      expect(sliderWrapper.attributes().id).toBe('foobar')
+      expect(formItemLabel.attributes().for).toBe(sliderWrapper.attributes().id)
+    })
+
+    it('form item role is group when multiple inputs', async () => {
+      const wrapper = mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+            <el-slider />
+            <el-slider />
+          </el-form-item>`,
+        components: {
+          'el-slider': Slider,
+          'el-form-item': ElFormItem,
+        },
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      expect(formItem.attributes().role).toBe('group')
     })
   })
 })

@@ -83,6 +83,11 @@
         'color',
         'white',
       ),
+      'link-text-color': (
+        'color',
+        $type,
+        'light-5',
+      ),
       'bg-color': (
         'color',
         $type,
@@ -130,7 +135,9 @@
     }
   }
 
-  &.is-plain {
+  &.is-plain,
+  &.is-text,
+  &.is-link {
     @include button-plain($type);
   }
 }

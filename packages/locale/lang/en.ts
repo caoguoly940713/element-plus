@@ -4,6 +4,9 @@ export default {
     colorpicker: {
       confirm: 'OK',
       clear: 'Clear',
+      defaultLabel: 'color picker',
+      description:
+        'current color is {color}. press enter to select a new color.',
     },
     datepicker: {
       now: 'Now',
@@ -11,6 +14,11 @@ export default {
       cancel: 'Cancel',
       clear: 'Clear',
       confirm: 'OK',
+      dateTablePrompt:
+        'Use the arrow keys and enter to select the day of the month',
+      monthTablePrompt: 'Use the arrow keys and enter to select the month',
+      yearTablePrompt: 'Use the arrow keys and enter to select the year',
+      selectedDate: 'Selected date',
       selectDate: 'Select date',
       selectTime: 'Select time',
       startDate: 'Start Date',
@@ -44,6 +52,15 @@ export default {
         fri: 'Fri',
         sat: 'Sat',
       },
+      weeksFull: {
+        sun: 'Sunday',
+        mon: 'Monday',
+        tue: 'Tuesday',
+        wed: 'Wednesday',
+        thu: 'Thursday',
+        fri: 'Friday',
+        sat: 'Saturday',
+      },
       months: {
         jan: 'Jan',
         feb: 'Feb',
@@ -58,6 +75,10 @@ export default {
         nov: 'Nov',
         dec: 'Dec',
       },
+    },
+    inputNumber: {
+      decrease: 'decrease number',
+      increase: 'increase number',
     },
     select: {
       loading: 'Loading',
@@ -79,17 +100,29 @@ export default {
       deprecationWarning:
         'Deprecated usages detected, please refer to the el-pagination documentation for more details',
     },
+    dialog: {
+      close: 'Close this dialog',
+    },
+    drawer: {
+      close: 'Close this dialog',
+    },
     messagebox: {
       title: 'Message',
       confirm: 'OK',
       cancel: 'Cancel',
       error: 'Illegal input',
+      close: 'Close this dialog',
     },
     upload: {
       deleteTip: 'press delete to remove',
       delete: 'Delete',
       preview: 'Preview',
       continue: 'Continue',
+    },
+    slider: {
+      defaultLabel: 'slider between {min} and {max}',
+      defaultRangeStartLabel: 'pick start value',
+      defaultRangeEndLabel: 'pick end value',
     },
     table: {
       emptyText: 'No Data',

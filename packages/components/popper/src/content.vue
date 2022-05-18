@@ -3,7 +3,10 @@
     ref="popperContentRef"
     :style="contentStyle"
     :class="contentClass"
-    role="tooltip"
+    :role="role"
+    :aria-label="ariaLabel"
+    :aria-modal="ariaModal"
+    tabindex="-1"
     @mouseenter="(e) => $emit('mouseenter', e)"
     @mouseleave="(e) => $emit('mouseleave', e)"
   >
@@ -18,6 +21,7 @@ import { useNamespace, useZIndex } from '@element-plus/hooks'
 import {
   POPPER_CONTENT_INJECTION_KEY,
   POPPER_INJECTION_KEY,
+  formItemContextKey,
 } from '@element-plus/tokens'
 import { usePopperContentProps } from './content'
 import { buildPopperOptions, unwrapMeasurableEl } from './utils'
@@ -32,10 +36,11 @@ defineEmits(['mouseenter', 'mouseleave'])
 
 const props = defineProps(usePopperContentProps)
 
-const { popperInstanceRef, contentRef, triggerRef } = inject(
+const { popperInstanceRef, contentRef, triggerRef, role } = inject(
   POPPER_INJECTION_KEY,
   undefined
 )!
+const formItemContext = inject(formItemContextKey, undefined)
 const { nextZIndex } = useZIndex()
 const ns = useNamespace('popper')
 const popperContentRef = ref<HTMLElement>()
@@ -45,6 +50,13 @@ provide(POPPER_CONTENT_INJECTION_KEY, {
   arrowRef,
   arrowOffset,
 })
+// disallow auto-id from inside popper content
+provide(formItemContextKey, {
+  ...formItemContext,
+  addInputId: () => undefined,
+  removeInputId: () => undefined,
+})
+
 const contentZIndex = ref(props.zIndex || nextZIndex())
 
 const computedReference = computed(
@@ -61,6 +73,10 @@ const contentClass = computed(() => [
   ns.is(props.effect),
   props.popperClass,
 ])
+
+const ariaModal = computed<string | undefined>(() => {
+  return role && role.value === 'dialog' ? 'false' : undefined
+})
 
 const createPopperInstance = ({ referenceEl, popperContentEl, arrowEl }) => {
   const options = buildPopperOptions(props, {

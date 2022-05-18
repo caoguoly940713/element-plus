@@ -2,6 +2,7 @@ import { nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { describe, expect, test } from 'vitest'
 import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { ElFormItem } from '@element-plus/components/form'
 import InputNumber from '../src/input-number.vue'
 
 const mouseup = new Event('mouseup')
@@ -9,6 +10,7 @@ const _mount = (options) =>
   mount({
     components: {
       'el-input-number': InputNumber,
+      'el-form-item': ElFormItem,
     },
     ...options,
   })
@@ -72,7 +74,7 @@ describe('InputNumber.vue', () => {
     await nextTick()
     expect(wrapper.find('input').element.value).toEqual('')
     expect(wrapper.find('input').element.getAttribute('aria-valuenow')).toEqual(
-      'NaN'
+      'null'
     )
   })
   test('min', async () => {
@@ -157,6 +159,19 @@ describe('InputNumber.vue', () => {
     })
     await wrapper.find('input').setValue(1.1111111111)
     expect(wrapper.find('input').element.value).toEqual('1.11')
+  })
+  test('precision accuracy', async () => {
+    const wrapper = _mount({
+      template: '<el-input-number :precision="2" v-model="num" />',
+      setup() {
+        const num = ref(0)
+        return {
+          num,
+        }
+      },
+    })
+    await wrapper.find('input').setValue(17.275)
+    expect(wrapper.find('input').element.value).toEqual('17.28')
   })
   test('disabled', async () => {
     const wrapper = _mount({
@@ -263,9 +278,41 @@ describe('InputNumber.vue', () => {
     expect(wrapper.getComponent(InputNumber).emitted('focus')).toHaveLength(1)
   })
 
-  test('clear', async () => {
+  test('clear with :value-on-clear="null"', async () => {
     const wrapper = _mount({
-      template: '<el-input-number v-model="num" :min="1"/>',
+      template: '<el-input-number v-model="num" :min="1" :max="10"/>',
+      setup() {
+        const num = ref(2)
+        return {
+          num,
+        }
+      },
+    })
+    const elInput = wrapper.findComponent({ name: 'ElInputNumber' }).vm
+    elInput.handleInputChange('')
+    await nextTick()
+    expect(wrapper.vm.num).toBe(null)
+    elInput.increase()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(1)
+    elInput.increase()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(2)
+    elInput.handleInputChange('')
+    await nextTick()
+    expect(wrapper.vm.num).toBe(null)
+    elInput.decrease()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(1)
+    elInput.decrease()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(1)
+  })
+
+  test('clear with value-on-clear="min"', async () => {
+    const wrapper = _mount({
+      template:
+        '<el-input-number v-model="num" value-on-clear="min" :min="1" :max="10"/>',
       setup() {
         const num = ref(2)
         return {
@@ -286,6 +333,58 @@ describe('InputNumber.vue', () => {
     elInput.decrease()
     await nextTick()
     expect(wrapper.vm.num).toBe(1)
+  })
+
+  test('clear with value-on-clear="max"', async () => {
+    const wrapper = _mount({
+      template:
+        '<el-input-number v-model="num" value-on-clear="max" :min="1" :max="10"/>',
+      setup() {
+        const num = ref(2)
+        return {
+          num,
+        }
+      },
+    })
+    const elInput = wrapper.findComponent({ name: 'ElInputNumber' }).vm
+    elInput.handleInputChange('')
+    await nextTick()
+    expect(wrapper.vm.num).toBe(10)
+    elInput.increase()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(10)
+    elInput.handleInputChange('')
+    await nextTick()
+    expect(wrapper.vm.num).toBe(10)
+    elInput.decrease()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(9)
+  })
+
+  test('clear with :value-on-clear="5"', async () => {
+    const wrapper = _mount({
+      template:
+        '<el-input-number v-model="num" :value-on-clear="5" :min="1" :max="10"/>',
+      setup() {
+        const num = ref(2)
+        return {
+          num,
+        }
+      },
+    })
+    const elInput = wrapper.findComponent({ name: 'ElInputNumber' }).vm
+    elInput.handleInputChange('')
+    await nextTick()
+    expect(wrapper.vm.num).toBe(5)
+    elInput.increase()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(6)
+    elInput.handleInputChange('')
+    await nextTick()
+    expect(wrapper.vm.num).toBe(5)
+    elInput.decrease()
+    await nextTick()
+    expect(wrapper.vm.num).toBe(4)
   })
 
   test('check increase and decrease button when modelValue not in [min, max]', async () => {
@@ -340,5 +439,51 @@ describe('InputNumber.vue', () => {
     elInputNumber2.decrease()
     await nextTick()
     expect(wrapper.vm.num2).toBe(8)
+  })
+
+  describe('form item accessibility integration', () => {
+    test('automatic id attachment', async () => {
+      const wrapper = _mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+          <el-input-number />
+        </el-form-item>`,
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      const formItemLabel = formItem.find('.el-form-item__label')
+      const innerInput = wrapper.find('.el-input__inner')
+      expect(formItem.attributes().role).toBeFalsy()
+      expect(formItemLabel.attributes().for).toBe(innerInput.attributes().id)
+    })
+
+    test('specified id attachment', async () => {
+      const wrapper = _mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+          <el-input-number id="foobar" />
+        </el-form-item>`,
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      const formItemLabel = formItem.find('.el-form-item__label')
+      const innerInput = wrapper.find('.el-input__inner')
+      expect(formItem.attributes().role).toBeFalsy()
+      expect(innerInput.attributes().id).toBe('foobar')
+      expect(formItemLabel.attributes().for).toBe(innerInput.attributes().id)
+    })
+
+    test('form item role is group when multiple inputs', async () => {
+      const wrapper = _mount({
+        template: `<el-form-item label="Foobar" data-test-ref="item">
+          <el-input-number />
+          <el-input-number />
+        </el-form-item>`,
+      })
+
+      await nextTick()
+      const formItem = wrapper.find('[data-test-ref="item"]')
+      expect(formItem.attributes().role).toBe('group')
+    })
   })
 })

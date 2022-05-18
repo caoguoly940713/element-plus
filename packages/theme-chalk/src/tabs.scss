@@ -111,7 +111,7 @@
     line-height: 40px;
     display: inline-block;
     list-style: none;
-    font-size: 14px;
+    font-size: getCssVar('font-size-base');
     font-weight: 500;
     color: getCssVar('text-color', 'primary');
     position: relative;
@@ -119,6 +119,11 @@
     &:focus,
     &:focus:active {
       outline: none;
+    }
+
+    &:focus-visible {
+      box-shadow: 0 0 2px 2px getCssVar('color-primary') inset;
+      border-radius: 3px;
     }
 
     & .is-icon-close {

@@ -16,7 +16,7 @@ export type KeyType = string | number | symbol
  */
 export type CellRendererParams<T> = {
   cellData: T
-} & RowCommonParams<T> &
+} & RowCommonParams &
   ColumnCommonParams<T>
 
 export type ColumnCommonParams<T> = {
@@ -29,21 +29,21 @@ export type HeaderCellRendererParams<T> = {
   headerIndex: number
 } & ColumnCommonParams<T>
 
-export type RowCommonParams<T> = {
-  rowData: T[]
+export type RowCommonParams = {
+  rowData: any
   rowIndex: number
 }
 
 export type ClassNameGetterParams<T> = {
   cellData: T
-} & RowCommonParams<T> &
+} & RowCommonParams &
   ColumnCommonParams<T>
 
 export type DataGetterParams<T> = {
   columns: Column<T>[]
   column: Column<T>
   columnIndex: number
-} & RowCommonParams<T>
+} & RowCommonParams
 
 export type DataGetter<T> = (params: DataGetterParams<T>) => T
 export type ClassNameGetter<T> = (params: ClassNameGetterParams<T>) => string
@@ -61,19 +61,20 @@ export type HeaderCellRenderer<T> = (
 ) => VNode
 
 export type Column<T = any> = {
-  key: KeyType
   /**
    * Attributes
    */
   align?: Alignment
   class?: string | ClassNameGetter<T>
+  dataKey?: KeyType
   fixed?: true | FixedDirection
+  flexGrow?: CSSProperties['flexGrow']
+  flexShrink?: CSSProperties['flexShrink']
   title?: string
   hidden?: boolean
   headerClass?: HeaderClassGetter<T> | string
   maxWidth?: number
   minWidth?: number
-  resizable?: boolean
   style?: CSSProperties
   sortable?: boolean
   width: number
@@ -94,6 +95,10 @@ export type AnyColumns = Columns<any>
 export type SortBy = {
   key: KeyType
   order: SortOrder
+}
+
+export type SortState = {
+  [key: KeyType]: SortOrder
 }
 
 export type CustomizedCellsType = VNode<
